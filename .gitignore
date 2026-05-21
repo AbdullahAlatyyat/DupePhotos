@@ -1,0 +1,49 @@
+# Build outputs
+bin/
+obj/
+out/
+artifacts/
+TestResults/
+
+# .NET
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.DotSettings.user
+
+# Windows App SDK / MSIX packaging
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.msixupload
+*.cer
+*.pfx
+
+# Logs and diagnostics
+*.log
+*.binlog
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
