@@ -30,3 +30,23 @@ Run the Avalonia app locally:
 ```bash
 dotnet run --project src/DupePhotos.App/DupePhotos.App.csproj
 ```
+
+## Publish For Windows From Linux
+
+Create a self-contained Windows x64 build:
+
+```bash
+dotnet publish src/DupePhotos.App/DupePhotos.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/publish/win-x64
+```
+
+The Windows executable is written to:
+
+```text
+artifacts/publish/win-x64/DupePhotos.App.exe
+```
+
+To omit debug symbol files from the publish folder:
+
+```bash
+dotnet publish src/DupePhotos.App/DupePhotos.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o artifacts/publish/win-x64
+```
