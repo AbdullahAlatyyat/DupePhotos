@@ -21,7 +21,12 @@ public sealed record ImageAnalysis(
     int Height,
     string Sha256,
     string PixelHash,
-    ulong PerceptualHash,
+    ulong HorizontalDifferenceHash,
+    ulong VerticalDifferenceHash,
+    ulong AverageHash,
+    byte AverageRed,
+    byte AverageGreen,
+    byte AverageBlue,
     byte[] VerificationLuma);
 
 public sealed record DuplicateImageItem(

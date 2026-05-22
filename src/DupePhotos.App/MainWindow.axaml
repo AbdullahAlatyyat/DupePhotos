@@ -4,10 +4,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="DupePhotos"
     x:CompileBindings="False"
-    Width="1080"
-    Height="760"
-    MinWidth="780"
-    MinHeight="520">
+    Width="900"
+    Height="640"
+    MinWidth="720"
+    MinHeight="480">
 
     <Grid Margin="24" RowDefinitions="Auto,Auto,*">
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">

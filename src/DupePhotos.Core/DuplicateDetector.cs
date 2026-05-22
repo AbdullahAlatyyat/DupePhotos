@@ -4,9 +4,19 @@ namespace DupePhotos.Core;
 
 public sealed class DuplicateDetector(IImageScanner scanner, IImageHasher hasher) : IDuplicateDetector
 {
-    private const int LikelyVisualDistance = 8;
-    private const int ReviewVisualDistance = 14;
-    private const double ReviewVerificationMaxMeanDifference = 18.0;
+    private const double AspectRatioTolerance = 0.015;
+    private const int LikelyDifferenceHashDistance = 8;
+    private const int LikelyAverageHashDistance = 4;
+    private const double LikelyMaxMeanDifference = 0.045;
+    private const double LikelyMaxRootMeanSquareDifference = 0.06;
+    private const double LikelyMinShapeSimilarity = 0.985;
+    private const double LikelyMaxAverageColorDistance = 10.0;
+    private const int ReviewDifferenceHashDistance = 16;
+    private const int ReviewAverageHashDistance = 8;
+    private const double ReviewMaxMeanDifference = 0.075;
+    private const double ReviewMaxRootMeanSquareDifference = 0.10;
+    private const double ReviewMinShapeSimilarity = 0.96;
+    private const double ReviewMaxAverageColorDistance = 20.0;
 
     public async Task<IReadOnlyList<DuplicateGroup>> FindDuplicatesAsync(
         string folderPath,
@@ -69,20 +79,10 @@ public sealed class DuplicateDetector(IImageScanner scanner, IImageHasher hasher
         {
             for (var right = left + 1; right < images.Count; right++)
             {
-                var distance = HammingDistance(images[left].PerceptualHash, images[right].PerceptualHash);
-                if (distance <= LikelyVisualDistance)
+                var visualMatch = CompareVisualSimilarity(images[left], images[right]);
+                if (visualMatch.Kind is not null)
                 {
-                    if (MeanAbsoluteDifference(images[left].VerificationLuma, images[right].VerificationLuma) <= ReviewVerificationMaxMeanDifference)
-                    {
-                        graph.Connect(left, right, DuplicateMatchKind.LikelyVisualDuplicate, 0.92);
-                    }
-
-                    continue;
-                }
-
-                if (distance <= ReviewVisualDistance && MeanAbsoluteDifference(images[left].VerificationLuma, images[right].VerificationLuma) <= ReviewVerificationMaxMeanDifference)
-                {
-                    graph.Connect(left, right, DuplicateMatchKind.NeedsReview, 0.75);
+                    graph.Connect(left, right, visualMatch.Kind.Value, visualMatch.Confidence);
                 }
             }
         }
@@ -137,20 +137,114 @@ public sealed class DuplicateDetector(IImageScanner scanner, IImageHasher hasher
         return BitOperations.PopCount(left ^ right);
     }
 
-    private static double MeanAbsoluteDifference(byte[] left, byte[] right)
+    private static VisualMatch CompareVisualSimilarity(ImageAnalysis left, ImageAnalysis right)
+    {
+        if (!HasSimilarAspectRatio(left, right))
+        {
+            return VisualMatch.None;
+        }
+
+        var horizontalDistance = HammingDistance(left.HorizontalDifferenceHash, right.HorizontalDifferenceHash);
+        var verticalDistance = HammingDistance(left.VerticalDifferenceHash, right.VerticalDifferenceHash);
+        var averageDistance = HammingDistance(left.AverageHash, right.AverageHash);
+        var differenceDistance = horizontalDistance + verticalDistance;
+        var averageColorDistance = AverageColorDistance(left, right);
+        var verification = CompareVerificationLuma(left.VerificationLuma, right.VerificationLuma);
+
+        if (differenceDistance <= LikelyDifferenceHashDistance
+            && averageDistance <= LikelyAverageHashDistance
+            && averageColorDistance <= LikelyMaxAverageColorDistance
+            && verification.MeanAbsoluteDifference <= LikelyMaxMeanDifference
+            && verification.RootMeanSquareDifference <= LikelyMaxRootMeanSquareDifference
+            && verification.ShapeSimilarity >= LikelyMinShapeSimilarity)
+        {
+            return new VisualMatch(DuplicateMatchKind.LikelyVisualDuplicate, 0.92);
+        }
+
+        if (differenceDistance <= ReviewDifferenceHashDistance
+            && averageDistance <= ReviewAverageHashDistance
+            && averageColorDistance <= ReviewMaxAverageColorDistance
+            && verification.MeanAbsoluteDifference <= ReviewMaxMeanDifference
+            && verification.RootMeanSquareDifference <= ReviewMaxRootMeanSquareDifference
+            && verification.ShapeSimilarity >= ReviewMinShapeSimilarity)
+        {
+            return new VisualMatch(DuplicateMatchKind.NeedsReview, 0.75);
+        }
+
+        return VisualMatch.None;
+    }
+
+    private static bool HasSimilarAspectRatio(ImageAnalysis left, ImageAnalysis right)
+    {
+        var leftRatio = left.Width / (double)left.Height;
+        var rightRatio = right.Width / (double)right.Height;
+        return Math.Abs(leftRatio - rightRatio) / Math.Max(leftRatio, rightRatio) <= AspectRatioTolerance;
+    }
+
+    private static double AverageColorDistance(ImageAnalysis left, ImageAnalysis right)
+    {
+        var red = left.AverageRed - right.AverageRed;
+        var green = left.AverageGreen - right.AverageGreen;
+        var blue = left.AverageBlue - right.AverageBlue;
+        return Math.Sqrt((red * red) + (green * green) + (blue * blue));
+    }
+
+    private static VerificationComparison CompareVerificationLuma(byte[] left, byte[] right)
     {
         if (left.Length != right.Length)
         {
-            return double.MaxValue;
+            return VerificationComparison.Mismatch;
         }
 
         long total = 0;
+        long squaredTotal = 0;
+        long leftTotal = 0;
+        long rightTotal = 0;
         for (var i = 0; i < left.Length; i++)
         {
-            total += Math.Abs(left[i] - right[i]);
+            var difference = left[i] - right[i];
+            total += Math.Abs(difference);
+            squaredTotal += difference * difference;
+            leftTotal += left[i];
+            rightTotal += right[i];
         }
 
-        return total / (double)left.Length;
+        var leftMean = leftTotal / (double)left.Length;
+        var rightMean = rightTotal / (double)right.Length;
+        double covariance = 0;
+        double leftVariance = 0;
+        double rightVariance = 0;
+
+        for (var i = 0; i < left.Length; i++)
+        {
+            var leftDelta = left[i] - leftMean;
+            var rightDelta = right[i] - rightMean;
+            covariance += leftDelta * rightDelta;
+            leftVariance += leftDelta * leftDelta;
+            rightVariance += rightDelta * rightDelta;
+        }
+
+        var shapeSimilarity = leftVariance == 0 || rightVariance == 0
+            ? total == 0 ? 1.0 : 0.0
+            : covariance / Math.Sqrt(leftVariance * rightVariance);
+
+        return new VerificationComparison(
+            total / (double)(left.Length * byte.MaxValue),
+            Math.Sqrt(squaredTotal / (double)left.Length) / byte.MaxValue,
+            shapeSimilarity);
+    }
+
+    private readonly record struct VisualMatch(DuplicateMatchKind? Kind, double Confidence)
+    {
+        public static VisualMatch None { get; } = new(null, 0);
+    }
+
+    private readonly record struct VerificationComparison(
+        double MeanAbsoluteDifference,
+        double RootMeanSquareDifference,
+        double ShapeSimilarity)
+    {
+        public static VerificationComparison Mismatch { get; } = new(double.MaxValue, double.MaxValue, double.MinValue);
     }
 
     private sealed class MatchGraph(int count)
