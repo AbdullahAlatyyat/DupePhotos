@@ -26,10 +26,14 @@
             </Button>
         </Grid>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,18,0,18">
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,18,0,18">
             <ProgressBar IsIndeterminate="{Binding IsScanning}" Value="{Binding ScanPercent}" Maximum="100" Height="6" VerticalAlignment="Center" />
 
-            <Button Grid.Column="1" Command="{Binding DeleteSelectedCommand}" MinWidth="164">
+            <Button Grid.Column="1" Command="{Binding AutoSelectDuplicatesCommand}" MinWidth="156">
+                <TextBlock Text="Auto select dupes" />
+            </Button>
+
+            <Button Grid.Column="2" Command="{Binding DeleteSelectedCommand}" MinWidth="164">
                 <TextBlock Text="Recycle selected" />
             </Button>
         </Grid>

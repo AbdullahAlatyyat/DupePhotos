@@ -42,6 +42,21 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void AutoSelectDuplicatesCommand_SelectsEverythingExceptSuggestedKeeps()
+    {
+        var viewModel = new MainViewModel(new FakeDuplicateDetector(), new FakeRecycleBinService(), () => Task.FromResult<string?>(null));
+        viewModel.Groups.Add(new DuplicateGroupViewModel(CreateGroup("/photos/a.png", "/photos/b.png", "/photos/c.png")));
+
+        viewModel.AutoSelectDuplicatesCommand.Execute(null);
+
+        var items = viewModel.Groups.Single().Items;
+        Assert.False(items[0].IsSelectedForDelete);
+        Assert.True(items[1].IsSelectedForDelete);
+        Assert.True(items[2].IsSelectedForDelete);
+        Assert.Equal("Auto selected 2 duplicate file(s).", viewModel.StatusText);
+    }
+
+    [Fact]
     public async Task DeleteSelectedCommand_RemovesDeletedItemsAndEmptyGroups()
     {
         var recycleBin = new FakeRecycleBinService();

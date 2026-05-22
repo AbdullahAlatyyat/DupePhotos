@@ -61,6 +61,25 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void AutoSelectDuplicates()
+    {
+        var selectedCount = 0;
+
+        foreach (var item in Groups.SelectMany(group => group.Items))
+        {
+            item.IsSelectedForDelete = !item.IsSuggestedKeep;
+            if (item.IsSelectedForDelete)
+            {
+                selectedCount++;
+            }
+        }
+
+        StatusText = selectedCount == 0
+            ? "No duplicate files available to auto select."
+            : $"Auto selected {selectedCount} duplicate file(s).";
+    }
+
+    [RelayCommand]
     private async Task DeleteSelectedAsync()
     {
         var selected = Groups
