@@ -1,3 +1,4 @@
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DupePhotos.Core;
 
@@ -18,6 +19,8 @@ public sealed partial class DuplicateItemViewModel : ObservableObject
     [ObservableProperty]
     private bool isSelectedForDelete;
 
+    private Bitmap? thumbnail;
+
     public string Path { get; }
 
     public long SizeBytes { get; }
@@ -32,7 +35,7 @@ public sealed partial class DuplicateItemViewModel : ObservableObject
 
     public string FileName => System.IO.Path.GetFileName(Path);
 
-    public Uri ThumbnailUri => new(Path);
+    public Bitmap? Thumbnail => thumbnail ??= LoadThumbnail();
 
     public string Details => $"{Width} x {Height} | {FormatBytes(SizeBytes)} | {ModifiedAt.LocalDateTime:g}";
 
@@ -51,5 +54,23 @@ public sealed partial class DuplicateItemViewModel : ObservableObject
         }
 
         return $"{value:0.#} {suffixes[suffix]}";
+    }
+
+    private Bitmap? LoadThumbnail()
+    {
+        if (!File.Exists(Path))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(Path);
+            return Bitmap.DecodeToWidth(stream, 160);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

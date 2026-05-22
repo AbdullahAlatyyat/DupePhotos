@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DupePhotos.App.Services;
 using DupePhotos.Core;
 
 namespace DupePhotos.App.ViewModels;
@@ -10,6 +11,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IDuplicateDetector _detector;
     private readonly IRecycleBinService _recycleBin;
     private readonly Func<Task<string?>> _pickFolderAsync;
+    private readonly Func<IReadOnlyList<string>, FileRemovalKind, Task<bool>> _confirmDeleteAsync;
     private CancellationTokenSource? _scanCancellation;
 
     [ObservableProperty]
@@ -27,11 +29,16 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<DuplicateGroupViewModel> Groups { get; } = [];
 
-    public MainViewModel(IDuplicateDetector detector, IRecycleBinService recycleBin, Func<Task<string?>> pickFolderAsync)
+    public MainViewModel(
+        IDuplicateDetector detector,
+        IRecycleBinService recycleBin,
+        Func<Task<string?>> pickFolderAsync,
+        Func<IReadOnlyList<string>, FileRemovalKind, Task<bool>>? confirmDeleteAsync = null)
     {
         _detector = detector;
         _recycleBin = recycleBin;
         _pickFolderAsync = pickFolderAsync;
+        _confirmDeleteAsync = confirmDeleteAsync ?? ((_, _) => Task.FromResult(true));
     }
 
     [RelayCommand]
@@ -68,11 +75,20 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
+        var removalKind = _recycleBin is IFileRemovalPreview preview
+            ? preview.GetRemovalKind()
+            : FileRemovalKind.RecycleOrTrash;
+        if (!await _confirmDeleteAsync(selected, removalKind))
+        {
+            StatusText = "Recycle canceled.";
+            return;
+        }
+
         await _recycleBin.MoveToRecycleBinAsync(selected);
 
         foreach (var group in Groups.ToList())
         {
-            foreach (var item in group.Items.Where(item => selected.Contains(item.Path, StringComparer.OrdinalIgnoreCase)).ToList())
+            foreach (var item in group.Items.Where(item => selected.Contains(item.Path, StringComparer.Ordinal)).ToList())
             {
                 group.Items.Remove(item);
             }
@@ -83,7 +99,9 @@ public sealed partial class MainViewModel : ObservableObject
             }
         }
 
-        StatusText = $"Moved {selected.Count} file(s) to the Recycle Bin.";
+        StatusText = removalKind == FileRemovalKind.PermanentDelete
+            ? $"Deleted {selected.Count} file(s)."
+            : $"Moved {selected.Count} file(s) to the trash.";
     }
 
     private async Task ScanAsync(string folder)

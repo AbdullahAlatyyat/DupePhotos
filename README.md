@@ -1,11 +1,12 @@
 # DupePhotos
 
-DupePhotos is a WinUI 3 Windows app for finding duplicate images in a selected folder and safely moving selected duplicates to the Recycle Bin.
+DupePhotos is an Avalonia desktop app for finding duplicate images in a selected folder and safely moving selected duplicates to the operating system trash or recycle bin when available.
 
 ## Projects
 
 - `src/DupePhotos.Core`: testable duplicate detection engine.
-- `src/DupePhotos.App`: WinUI 3 app packaged as MSIX for Microsoft Store deployment.
+- `src/DupePhotos.App`: cross-platform Avalonia desktop app.
+- `tests/DupePhotos.App.Tests`: app ViewModel and file-removal service tests.
 - `tests/DupePhotos.Core.Tests`: unit tests for scanning and duplicate detection.
 
 ## Duplicate Detection
@@ -20,25 +21,12 @@ The scanner uses a staged local-only pipeline:
 
 ## Local Verification
 
-The core library and tests can run cross-platform:
-
 ```bash
 dotnet test
 ```
 
-The WinUI project requires Windows because the Windows App SDK invokes a Windows-only XAML compiler.
+Run the Avalonia app locally:
 
-## Windows Development
-
-On a Windows machine with Visual Studio and the Windows App SDK tooling installed:
-
-```powershell
-dotnet restore
-dotnet build .\src\DupePhotos.App\DupePhotos.App.csproj -c Release -p:Platform=x64
+```bash
+dotnet run --project src/DupePhotos.App/DupePhotos.App.csproj
 ```
-
-To create a Store-ready MSIX package, open `src/DupePhotos.App` in Visual Studio and use:
-
-`Project > Publish > Create App Packages`
-
-Use the Microsoft Store-associated publisher identity before final submission. The current manifest identity is a development placeholder.
