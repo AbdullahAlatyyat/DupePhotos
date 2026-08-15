@@ -19,6 +19,14 @@ The scanner uses a staged local-only pipeline:
 4. Perceptual dHash for resized or recompressed visual duplicates.
 5. Grayscale verification for perceptual matches to reduce false positives.
 
+## Releases
+
+Tagging a commit with `vX.Y.Z` (e.g. `v0.1.0`) and pushing the tag triggers the
+[Release workflow](.github/workflows/release.yml), which runs the test suite,
+publishes self-contained single-file builds for Windows, Linux, and macOS
+(x64 and arm64), and attaches them to a GitHub release. Prebuilt downloads are
+available on the [Releases page](https://github.com/AbdullahAlatyyat/DupePhotos/releases).
+
 ## Local Verification
 
 ```bash
